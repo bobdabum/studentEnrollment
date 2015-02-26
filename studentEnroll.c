@@ -127,6 +127,7 @@ void removeFromQueue(struct Student *s){
 			queuePos = s->queuePos;
 			s->queuePos = -1;
 			s->enrolled = -1;
+  printf("Student %i's impatient, trying to remove from queue\n",s->studentID);
 		}
 		pthread_mutex_unlock(&(s->studentMutex));
 		
@@ -220,7 +221,7 @@ void *createStudent(void *param){
 	return NULL;
 }
 int addStudent(int sectionDesired, int studentID){
-  printf("Section Desired:%i\n",sectionDesired);
+  printf("Trying to add student:%i. Section Desired:%i\n",studentID, sectionDesired);
 	int hasBeenAdded= 0;
 	if(sectionDesired == 0){
 		pthread_mutex_lock(&class0Mutex);
@@ -254,6 +255,7 @@ int addStudent(int sectionDesired, int studentID){
 		pthread_mutex_lock(&class1Mutex);
 		pthread_mutex_lock(&class2Mutex);
 		//Adds Student to class of smallest size less than 20
+		printf("Total Number of students:%i; class0:%i; class1:%i; class2:%i\n",(class0Num+class1Num+class2Num),class0Num,class1Num,class2Num);
 		if((class0Num+class1Num+class2Num)<(SIZE_SECTION*NUM_SECTIONS)){
 			if(class0Num< class1Num && class0Num<class2Num && class0Num<20){
 				class0[class0Num] = studentID;
@@ -273,7 +275,7 @@ int addStudent(int sectionDesired, int studentID){
 		}
 		pthread_mutex_unlock(&class2Mutex);
 		pthread_mutex_unlock(&class1Mutex);
-		pthread_mutex_lock(&class0Mutex);
+		pthread_mutex_unlock(&class0Mutex);
 	}
 	return hasBeenAdded;
 }
