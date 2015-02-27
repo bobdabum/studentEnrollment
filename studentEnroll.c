@@ -281,6 +281,8 @@ int addStudent(int sectionDesired, int studentID){
 }
 void gsQueueRun(){
 	if(!timesUp){
+		//Waits Random time b/t 1 to 2 seconds
+		sleep(rand()%2+1);
 		char addedOrDropped[20]=""; 
 		//wait on gs Semaphore
 		sem_wait(&gsSem);
@@ -292,8 +294,7 @@ void gsQueueRun(){
 		int sectionDesired = allStudents[gsQueue[0]].sectionDesired;
 		int studentID = allStudents[gsQueue[0]].studentID;
 
-		//Waits Random time b/t 1 to 2 seconds
-		sleep(rand()%2+1);
+		
 
 		//Tries to add to section. Need to make sure student hasn't been impatient
 		int addedSuccessfully = 0;
@@ -309,7 +310,7 @@ void gsQueueRun(){
 			allStudents[gsQueue[0]].enrolled = -1;
 		}
 		//Prints event, either success or drop
-		printElapsedTime();                
+		printElapsedTime();               
 		printf("Student #%i.GS has been %s to class.\n", allStudents[gsQueue[0]].studentID, addedOrDropped);
 
 		//assigns wait time to student
@@ -341,6 +342,8 @@ void gsQueueRun(){
 }
 void rsQueueRun(){  
 	if(!timesUp){
+		//Waits Random time b/t 2,3,4 seconds
+		sleep(rand()%3+2);
 		char addedOrDropped[20]=""; 
 		//wait on gs Semaphore
 		sem_wait(&rsSem);		
@@ -352,8 +355,7 @@ void rsQueueRun(){
 		int sectionDesired = allStudents[rsQueue[0]].sectionDesired;
 		int studentID = allStudents[rsQueue[0]].studentID;
 
-		//Waits Random time b/t 2,3,4 seconds
-		sleep(rand()%3+2);
+		
 
 		//Tries to add to section. Need to make sure student hasn't been impatient
 		int addedSuccessfully = 0;
@@ -401,6 +403,8 @@ void rsQueueRun(){
 }
 void eeQueueRun(){
 	if(!timesUp){
+		//Waits Random time b/t 3,4,5,6 seconds
+		sleep(rand()%4+3);
 		char addedOrDropped[20]=""; 
 		//wait on ee Semaphore
 		sem_wait(&eeSem);
@@ -412,8 +416,7 @@ void eeQueueRun(){
 		int sectionDesired = allStudents[eeQueue[0]].sectionDesired;
 		int studentID = allStudents[eeQueue[0]].studentID;
 
-		//Waits Random time b/t 3,4,5,6 seconds
-		sleep(rand()%4+3);
+		
 		
 		//Tries to add to section. Need to make sure student hasn't been impatient
 		int addedSuccessfully = 0;
@@ -459,7 +462,6 @@ void eeQueueRun(){
 		pthread_mutex_unlock(&eeMutex);
 	}
 }
-//NOTE: look into why Queuestarts are needed?
 void *gsQueueStart(void *param){
 	printf("Queue for Graduating Seniors Starts\n");
 	do {
@@ -490,7 +492,7 @@ void *eeQueueStart(void *param){
 // Timer signal handler.
 void timerHandler(int signal)
 {
-	timesUp = 1;  // office hour is over  NOTE CHANGE THIS Right now I think timesup is not needed or currently incorrectly implemented.
+	timesUp = 1;
 }
 int main(int argc, char *argv[])
 {
@@ -538,7 +540,7 @@ int main(int argc, char *argv[])
 		pthread_create(&studentThreadId, &studentAttr, createStudent, &(allStudents[a]));
 	}
 
-	// Set & starts the timer for for office hour duration.
+	// Set & starts the timer for for enrollment duration.
 	enrollmentTimer.it_value.tv_sec = ENROLLMENT_WINDOW;
 	setitimer(ITIMER_REAL, &enrollmentTimer, NULL);
 
