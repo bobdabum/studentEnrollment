@@ -16,7 +16,7 @@
 #define NUM_SECTIONS 3
 #define SIZE_SECTION 20
 
-#define ENROLLMENT_WINDOW 120
+#define ENROLLMENT_WINDOW 60
 #define RAND_SEED 0
 #define TIME_IMPATIENT 10
 #define ID_BASE = 101
@@ -257,12 +257,12 @@ int addStudent(int sectionDesired, int studentID){
 		//Adds Student to class of smallest size less than 20
 		printf("Total Number of students:%i; class0:%i; class1:%i; class2:%i\n",(class0Num+class1Num+class2Num),class0Num,class1Num,class2Num);
 		if((class0Num+class1Num+class2Num)<(SIZE_SECTION*NUM_SECTIONS)){
-			if(class0Num< class1Num && class0Num<class2Num && class0Num<20){
+			if(class0Num<= class1Num && class0Num<=class2Num && class0Num<20){
 				class0[class0Num] = studentID;
 				class0Num++;
 				hasBeenAdded = 1;
 			}
-			else if(class1Num<class0Num && class1Num<class2Num && class1Num<20){
+			else if(class1Num<=class0Num && class1Num<=class2Num && class1Num<20){
 				class1[class1Num] = studentID;
 				class1Num++;
 				hasBeenAdded = 1;
@@ -284,6 +284,7 @@ void gsQueueRun(){
 		char addedOrDropped[20]=""; 
 		//wait on gs Semaphore
 		sem_wait(&gsSem);
+		
 		// Locking gs mutex and student mutex to add student to class.
 		pthread_mutex_lock(&gsMutex);
 		pthread_mutex_lock(&(allStudents[gsQueue[0]].studentMutex));
@@ -342,7 +343,8 @@ void rsQueueRun(){
 	if(!timesUp){
 		char addedOrDropped[20]=""; 
 		//wait on gs Semaphore
-		sem_wait(&rsSem);
+		sem_wait(&rsSem);		
+
 		// Locking gs mutex and student mutex to add student to class.
 		pthread_mutex_lock(&rsMutex);
 		pthread_mutex_lock(&(allStudents[rsQueue[0]].studentMutex));
@@ -402,6 +404,7 @@ void eeQueueRun(){
 		char addedOrDropped[20]=""; 
 		//wait on ee Semaphore
 		sem_wait(&eeSem);
+		
 		// Locking ee mutex and student mutex to add student to class.
 		pthread_mutex_lock(&eeMutex);
 		pthread_mutex_lock(&(allStudents[eeQueue[0]].studentMutex));
@@ -411,7 +414,7 @@ void eeQueueRun(){
 
 		//Waits Random time b/t 3,4,5,6 seconds
 		sleep(rand()%4+3);
-
+		
 		//Tries to add to section. Need to make sure student hasn't been impatient
 		int addedSuccessfully = 0;
 		if(allStudents[eeQueue[0]].enrolled != -1){
@@ -546,5 +549,7 @@ int main(int argc, char *argv[])
 	time(&startTime);
 
 	//waits for Everyone Else Queue to finish.
+	pthread_join(gsThreadID,NULL);
+	pthread_join(rsThreadID,NULL);
 	pthread_join(eeThreadID,NULL);
 }
