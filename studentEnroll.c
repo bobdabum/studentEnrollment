@@ -293,7 +293,7 @@ void gsQueueRun(){
 				allStudents[gsQueue[gsStart]].queuePos = -1;
 				allStudents[gsQueue[gsStart]].enrolled = -1;
 				printElapsedTime();                
-				printf("Student #%i.GS has been removed from GS queue due to lack of space.\n", allStudents[gsQueue[gsStart]].studentID, addedSuccessfully);
+				printf("Student #%i.GS has been removed from GS queue due to lack of space.\n", allStudents[gsQueue[gsStart]].studentID);
 			}
 			
 			//assigns wait time to student
@@ -357,7 +357,7 @@ void rsQueueRun(){
 				allStudents[rsQueue[rsStart]].queuePos = -1;
 				allStudents[rsQueue[rsStart]].enrolled = -1;
 				printElapsedTime();                
-				printf("Student #%i.EE has been removed from EE queue due to lack of space.\n", allStudents[rsQueue[rsStart]].studentID, addedSuccessfully);
+				printf("Student #%i.EE has been removed from EE queue due to lack of space.\n", allStudents[rsQueue[rsStart]].studentID);
 			}
 			
 			//assigns wait time to student
@@ -421,7 +421,7 @@ void eeQueueRun(){
 				allStudents[eeQueue[eeStart]].queuePos = -1;
 				allStudents[eeQueue[eeStart]].enrolled = -1;
 				printElapsedTime();                
-				printf("Student #%i.EE has been removed from EE queue due to lack of space.\n", allStudents[eeQueue[eeStart]].studentID, addedSuccessfully);
+				printf("Student #%i.EE has been removed from EE queue due to lack of space.\n", allStudents[eeQueue[eeStart]].studentID);
 			}
 			
 			//assigns wait time to student
@@ -599,7 +599,7 @@ int main(int argc, char *argv[])
 			if(allStudents[a].studentType ==0){
 				numGS++;
 				waitTimeGS += TIME_IMPATIENT;
-				printf("Student #%i.GS left impatiently. Wait time:%is\n",TIME_IMPATIENT);
+				printf("Student #%i.GS left impatiently. Wait time:%is\n",a,TIME_IMPATIENT);
 			}
 			else if(allStudents[a].studentType ==1){
 				numRS++;
