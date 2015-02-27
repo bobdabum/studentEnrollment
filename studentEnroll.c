@@ -16,7 +16,7 @@
 #define NUM_SECTIONS 3
 #define SIZE_SECTION 20
 
-#define ENROLLMENT_WINDOW 60
+#define ENROLLMENT_WINDOW 120
 #define RAND_SEED 0
 #define TIME_IMPATIENT 10
 #define ID_BASE = 101
@@ -35,8 +35,10 @@ int gsStart=0, rsStart=0,eeStart=0, gsSize = 0, rsSize = 0, eeSize = 0;
 sem_t gsSem, rsSem, eeSem;
 
 int timesUp = 0;
-time_t startTime;
+time_t startTime, endTime;
 struct itimerval enrollmentTimer;
+
+int remainingStudents[3];
 
 struct Student{
 	int studentID;
@@ -119,69 +121,76 @@ void addToQueue(struct Student *s){
 	}
 }
 void removeFromQueue(struct Student *s){
-	int queuePos = 0;
-	if(s->studentType == 0){
-		pthread_mutex_lock(&gsMutex);
-		//Modify Student Data
-		pthread_mutex_lock(&(s->studentMutex));
-		if(s->enrolled != 1 && s->queuePos==gsStart){
-			queuePos = s->queuePos;
-			s->queuePos = -1;
-			s->enrolled = -1;
-			
-			//increments start of gs Queue decreases Size
-			gsStart++; 
-			gsSize--;
-			printElapsedTime();
-			printf("Student #%i.GS has left due to impatience.\n",s->studentID);
+	if(!timesUp){		
+		if(s->studentType == 0){
+			pthread_mutex_lock(&gsMutex);
+			//Modify Student Data
+			pthread_mutex_lock(&(s->studentMutex));
+			if(s->enrolled != 1 && s->queuePos==gsStart){
+				s->queuePos = -1;
+				s->enrolled = -2;
+				
+				//increments start of gs Queue decreases Size
+				gsStart++; 
+				gsSize--;
+				
+				//Prints information
+				printElapsedTime();
+				printf("Student #%i.GS has left due to impatience.\n",s->studentID);
+				
+				//assigns wait time to student
+				s->waitTime = TIME_IMPATIENT;
+			}
+			pthread_mutex_unlock(&(s->studentMutex));
+			pthread_mutex_unlock(&gsMutex);
 		}
-		pthread_mutex_unlock(&(s->studentMutex));
-		pthread_mutex_unlock(&gsMutex);
-	}
-	else if(s->studentType == 1){
-		pthread_mutex_lock(&rsMutex);
-		pthread_mutex_lock(&(s->studentMutex));
-		if(s->enrolled != 1 && s->queuePos==rsStart){
-			queuePos = s->queuePos;
-			s->queuePos = -1;
-			s->enrolled = -1;
-			//increments start of rs Queue decreases Size
-			rsStart++;
-			rsSize--;
-			printElapsedTime();
-			printf("Student #%i.RS has left due to impatience.\n",s->studentID);
+		else if(s->studentType == 1){
+			pthread_mutex_lock(&rsMutex);
+			pthread_mutex_lock(&(s->studentMutex));
+			if(s->enrolled != 1 && s->queuePos==rsStart){
+				s->queuePos = -1;
+				s->enrolled = -2;
+				//increments start of rs Queue decreases Size
+				rsStart++;
+				rsSize--;
+				printElapsedTime();
+				printf("Student #%i.RS has left due to impatience.\n",s->studentID);
+				s->waitTime = TIME_IMPATIENT;
+			}
+			pthread_mutex_unlock(&(s->studentMutex));
+			pthread_mutex_unlock(&rsMutex);
 		}
-		pthread_mutex_unlock(&(s->studentMutex));
-		pthread_mutex_unlock(&rsMutex);
-	}
-	else{
-		pthread_mutex_lock(&eeMutex);
-		pthread_mutex_lock(&(s->studentMutex));
-		if(s->enrolled != 1 && s->queuePos==eeStart){
-			queuePos = s->queuePos;
-			s->queuePos = -1;
-			s->enrolled = -1;
-			//increments start of ee Queue decreases Size
-			eeStart++;
-			eeSize--;
-			printElapsedTime();
-			printf("Student #%i.EE has left due to impatience.\n",s->studentID);
+		else{
+			pthread_mutex_lock(&eeMutex);
+			pthread_mutex_lock(&(s->studentMutex));
+			if(s->enrolled != 1 && s->queuePos==eeStart){
+				s->queuePos = -1;
+				s->enrolled = -2;
+				//increments start of ee Queue decreases Size
+				eeStart++;
+				eeSize--;
+				printElapsedTime();
+				printf("Student #%i.EE has left due to impatience.\n",s->studentID);
+				s->waitTime = TIME_IMPATIENT;
+			}
+			pthread_mutex_unlock(&(s->studentMutex));
+			pthread_mutex_unlock(&eeMutex);
 		}
-		pthread_mutex_unlock(&(s->studentMutex));
-		pthread_mutex_unlock(&eeMutex);
 	}
 }
 void *createStudent(void *param){
 	struct Student *s = (struct Student*) param;
 	sleep(rand()%ENROLLMENT_WINDOW);
 	time(&(s->arrivalTime));
+	remainingStudents[s->studentType]--;
 	addToQueue(s);
 	sleep(TIME_IMPATIENT);
-	removeFromQueue(s);
+	if(!timesUp){
+		removeFromQueue(s);
+	}
 	return NULL;
 }
 int addStudent(int sectionDesired, int studentID){
-  printf("Trying to add student:%i. Section Desired:%i\n",studentID, sectionDesired);
 	int hasBeenAdded= -1;
 	if(sectionDesired == 0){
 		pthread_mutex_lock(&class0Mutex);
@@ -239,13 +248,20 @@ int addStudent(int sectionDesired, int studentID){
 	return hasBeenAdded;
 }
 void gsQueueRun(){
-	if(!timesUp){
+	if(!timesUp && remainingStudents[0]>0){
 		//wait on gs Semaphore
 		sem_wait(&gsSem);
 		
 		// Locking gs mutex and record the start location
 		pthread_mutex_lock(&gsMutex);
 		int start = gsStart;
+		printElapsedTime();
+		if(allStudents[gsQueue[gsStart]].sectionDesired!=3){
+			printf("Trying to add student #%i.GS to section %i.\n",allStudents[gsQueue[gsStart]].studentID, allStudents[gsQueue[gsStart]].sectionDesired);
+		}
+		else{
+			printf("Trying to add student #%i.GS to any section.\n",allStudents[gsQueue[gsStart]].studentID);
+		}
 		pthread_mutex_unlock(&gsMutex);
 		
 
@@ -262,7 +278,7 @@ void gsQueueRun(){
 			//Tries to add to section. Need to make sure student hasn't been impatient
 			
 			int addedSuccessfully = 0;
-			if(allStudents[gsQueue[gsStart]].enrolled != -1){
+			if(allStudents[gsQueue[gsStart]].enrolled != -2){
 				addedSuccessfully = addStudent(sectionDesired,studentID);
 			}
 			//Prints event, either success or drop
@@ -274,7 +290,7 @@ void gsQueueRun(){
 				allStudents[gsQueue[gsStart]].queuePos = -1;
 				allStudents[gsQueue[gsStart]].enrolled = -1;
 				printElapsedTime();                
-				printf("Student #%i.GS has been removed from GS queue due to lack of space in class %i.\n", allStudents[gsQueue[gsStart]].studentID, addedSuccessfully);
+				printf("Student #%i.GS has been removed from GS queue due to lack of space.\n", allStudents[gsQueue[gsStart]].studentID, addedSuccessfully);
 			}
 			
 			//assigns wait time to student
@@ -294,14 +310,21 @@ void gsQueueRun(){
 		pthread_mutex_unlock(&gsMutex);
 	}
 }
-void rsQueueRun(){  
-	if(!timesUp){
+void rsQueueRun(){
+	if(!timesUp && remainingStudents[1]>0){
 		//wait on rs Semaphore
 		sem_wait(&rsSem);
 		
 		// Locking gs mutex and record the start location
 		pthread_mutex_lock(&rsMutex);
 		int start = rsStart;
+		printElapsedTime();
+		if(allStudents[rsQueue[rsStart]].sectionDesired!=3){
+			printf("Trying to add student #%i.RS to section %i.\n",allStudents[rsQueue[rsStart]].studentID, allStudents[rsQueue[rsStart]].sectionDesired);
+		}
+		else{
+			printf("Trying to add student #%i.RS to any section.\n",allStudents[rsQueue[rsStart]].studentID);
+		}
 		pthread_mutex_unlock(&rsMutex);
 		
 
@@ -318,7 +341,7 @@ void rsQueueRun(){
 			//Tries to add to section. Need to make sure student hasn't been impatient
 			
 			int addedSuccessfully = 0;
-			if(allStudents[rsQueue[rsStart]].enrolled != -1){
+			if(allStudents[rsQueue[rsStart]].enrolled != -2){
 				addedSuccessfully = addStudent(sectionDesired,studentID);
 			}
 			//Prints event, either success or drop
@@ -330,7 +353,7 @@ void rsQueueRun(){
 				allStudents[rsQueue[rsStart]].queuePos = -1;
 				allStudents[rsQueue[rsStart]].enrolled = -1;
 				printElapsedTime();                
-				printf("Student #%i.EE has been removed from EE queue due to lack of space in class %i.\n", allStudents[rsQueue[rsStart]].studentID, addedSuccessfully);
+				printf("Student #%i.EE has been removed from EE queue due to lack of space.\n", allStudents[rsQueue[rsStart]].studentID, addedSuccessfully);
 			}
 			
 			//assigns wait time to student
@@ -351,18 +374,25 @@ void rsQueueRun(){
 	}
 }
 void eeQueueRun(){
-	if(!timesUp){
+	if(!timesUp && remainingStudents[2]>0){
 		//wait on ee Semaphore
 		sem_wait(&eeSem);
 		
 		// Locking ee mutex and record the start location
 		pthread_mutex_lock(&eeMutex);
 		int start = eeStart;
+		printElapsedTime();
+		if(allStudents[eeQueue[eeStart]].sectionDesired!=3){
+			printf("Trying to add student #%i.EE to section %i.\n",allStudents[eeQueue[eeStart]].studentID, allStudents[eeQueue[eeStart]].sectionDesired);
+		}
+		else{			
+			printf("Trying to add student #%i.EE to any section.\n",allStudents[eeQueue[eeStart]].studentID);
+		}
 		pthread_mutex_unlock(&eeMutex);
 		
 
-		//Waits Random time b/t 2,3,4 seconds
-		sleep(rand()%3+2);
+		//Waits Random time b/t 3,4,5,6 seconds
+		sleep(rand()%4+3);
 
 		//relocks mutex and make sure that the start hasn't changed
 		pthread_mutex_lock(&eeMutex);		
@@ -374,7 +404,7 @@ void eeQueueRun(){
 			//Tries to add to section. Need to make sure student hasn't been impatient
 			
 			int addedSuccessfully = 0;
-			if(allStudents[eeQueue[eeStart]].enrolled != -1){
+			if(allStudents[eeQueue[eeStart]].enrolled != -2){
 				addedSuccessfully = addStudent(sectionDesired,studentID);
 			}
 			//Prints event, either success or drop
@@ -386,7 +416,7 @@ void eeQueueRun(){
 				allStudents[eeQueue[eeStart]].queuePos = -1;
 				allStudents[eeQueue[eeStart]].enrolled = -1;
 				printElapsedTime();                
-				printf("Student #%i.EE has been removed from EE queue due to lack of space in class %i.\n", allStudents[eeQueue[eeStart]].studentID, addedSuccessfully);
+				printf("Student #%i.EE has been removed from EE queue due to lack of space.\n", allStudents[eeQueue[eeStart]].studentID, addedSuccessfully);
 			}
 			
 			//assigns wait time to student
@@ -407,37 +437,39 @@ void eeQueueRun(){
 	}
 }
 void *gsQueueStart(void *param){
-	printf("Queue for Graduating Seniors Starts\n");
+	printf("Queue for Graduating Seniors Starts.\n");
 	do {
 		gsQueueRun();
 	} while (!timesUp);
 	printElapsedTime();
-	printf("Queue for Graduating Seniors Ends\n");
+	printf("Queue for Graduating Seniors Ends.\n");
 	return NULL;
 }
 void *rsQueueStart(void *param){
-	printf("Queue for Regular Seniors Starts\n");
+	printf("Queue for Regular Seniors Starts.\n");
 	do {
 		rsQueueRun();
 	} while (!timesUp);
 	printElapsedTime();
-	printf("Queue for Regular Seniors Ends\n");
+	printf("Queue for Regular Seniors Ends.\n");
 	return NULL;
 }
 void *eeQueueStart(void *param){
-	printf("Queue for Everyone Else Starts\n");
+	printf("Queue for Everyone Else Starts.\n");
 	do {
 		eeQueueRun();
 	} while (!timesUp);
 	printElapsedTime();
-	printf("Queue for Everyone Else Ends\n");
+	printf("Queue for Everyone Else Ends.\n");
 	return NULL;
 }
 // Timer signal handler.
 void timerHandler(int signal)
 {
+	printf("Time Over\n");
 	timesUp = 1;  // office hour is over  NOTE CHANGE THIS Right now I think timesup is not needed or currently incorrectly implemented.
 }
+
 int main(int argc, char *argv[])
 {
 	//Seed rng with RAND_SEED
@@ -472,6 +504,7 @@ int main(int argc, char *argv[])
 		//randomizes student attributes
 		allStudents[a].studentID = a;
 		allStudents[a].studentType = rand() % NUM_STUDENT_PRIORITY;
+		remainingStudents[allStudents[a].studentType]++;
 		allStudents[a].sectionDesired = rand() % NUM_STUDENT_CLASS_TYPES;
 		allStudents[a].queuePos = -1;
 		allStudents[a].enrolled = 0;
@@ -498,4 +531,99 @@ int main(int argc, char *argv[])
 	pthread_join(gsThreadID,NULL);
 	pthread_join(rsThreadID,NULL);
 	pthread_join(eeThreadID,NULL);
+	time(&endTime);
+	
+	int numDropped = 0, numLeft = 0, numNever, numGS = 0, numRS = 0, numEE = 0;
+	double waitTimeGS = 0,waitTimeRS = 0,waitTimeEE = 0;
+	printf("\n--------------------\nSection 0 students:\n");
+	for(a=0;a<class0Num;a++){
+		printf("%i,",class0[a]);
+	}
+	printf("\n--------------------\nSection 1 students:\n");
+	for(a=0;a<class1Num;a++){
+		printf("%i,",class1[a]);
+	}
+	printf("\n--------------------\nSection 2 students:\n");
+	for(a=0;a<class2Num;a++){
+		printf("%i,",class2[a]);
+	}
+	
+	printf("\n--------------------\nWait Times\n");
+	for(a=0; a<NUM_STUDENTS;a++){
+		if(allStudents[a].enrolled==0){
+			numNever++;
+			if(allStudents[a].studentType ==0){
+				numGS++;
+				waitTimeGS += difftime(endTime, allStudents[a].arrivalTime);
+				printf("Student #%i.GS was never placed. Wait time:%02d\n",a,difftime(endTime, allStudents[a].arrivalTime));
+			}
+			else if(allStudents[a].studentType ==1){
+				numRS++;
+				waitTimeRS += difftime(endTime, allStudents[a].arrivalTime);
+				printf("Student #%i.RS was never placed. Wait time:%02d\n",a,difftime(endTime, allStudents[a].arrivalTime));
+			}
+			else{
+				numEE++;
+				waitTimeEE += difftime(endTime, allStudents[a].arrivalTime);
+				printf("Student #%i.EE was never placed. Wait time:%02d\n",a,difftime(endTime, allStudents[a].arrivalTime));
+			}
+		}
+		if(allStudents[a].enrolled==-1){
+			numDropped++;						
+			if(allStudents[a].studentType ==0){
+				numGS++;
+				waitTimeGS += allStudents[a].waitTime;
+				printf("Student #%i.GS could not be placed because class was full. Wait time:%is\n",a,allStudents[a].waitTime);
+			}
+			else if(allStudents[a].studentType ==1){
+				numRS++;
+				waitTimeRS += allStudents[a].waitTime;
+				printf("Student #%i.RS could not be placed because class was full. Wait time:%is\n",a,allStudents[a].waitTime);
+			}
+			else{
+				numEE++;
+				waitTimeEE += allStudents[a].waitTime;
+				printf("Student #%i.EE could not be placed because class was full. Wait time:%is\n",a,allStudents[a].waitTime);
+			}
+		}
+		else if(allStudents[a].enrolled==-2){
+			numLeft++;
+			if(allStudents[a].studentType ==0){
+				numGS++;
+				waitTimeGS += TIME_IMPATIENT;
+				printf("Student #%i.GS left impatiently. Wait time:%is\n",TIME_IMPATIENT);
+			}
+			else if(allStudents[a].studentType ==1){
+				numRS++;
+				waitTimeRS += allStudents[a].waitTime;
+				printf("Student #%i.RS left impatiently. Wait time:%is\n",a,TIME_IMPATIENT);
+			}
+			else{
+				numEE++;
+				waitTimeEE += allStudents[a].waitTime;
+				printf("Student #%i.EE left impatiently. Wait time:%is\n",a,TIME_IMPATIENT);
+			}
+		}
+		else{
+			if(allStudents[a].studentType ==0){
+				numGS++;
+				waitTimeGS += allStudents[a].waitTime;
+				printf("Student #%i.GS placed. Wait time:%i\n",a,allStudents[a].waitTime);
+			}
+			else if(allStudents[a].studentType ==1){
+				numRS++;
+				waitTimeRS += allStudents[a].waitTime;
+				printf("Student #%i.RS placed. Wait time:%i\n",a,allStudents[a].waitTime);
+			}
+			else{
+				numEE++;
+				waitTimeEE += allStudents[a].waitTime;
+				printf("Student #%i.EE placed. Wait time:%i\n",a,allStudents[a].waitTime);
+			}
+		}
+	}
+		printf("\n--------------------\nAverage Wait Times\n");
+		printf("GS Queue %02ds; RS Queue %02ds; EE Queue %.2fs;\n",waitTimeGS, waitTimeRS, waitTimeEE);
+		printf("Final Stats\n");
+		printf("Number Placed: %i.\nNumber not processed/failed to place: %i.\nNumber left impatiently: %i\n",class0Num+class1Num+class2Num, numDropped+numNever, numLeft);
 }
