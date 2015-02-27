@@ -525,7 +525,7 @@ int main(int argc, char *argv[])
 		pthread_create(&studentThreadId, &studentAttr, createStudent, &(allStudents[a]));
 	}
 
-	// Set & starts the timer for for office hour duration.
+	// Set & starts the timer for for enrollment duration.
 	enrollmentTimer.it_value.tv_sec = ENROLLMENT_WINDOW;
 	setitimer(ITIMER_REAL, &enrollmentTimer, NULL);
 
