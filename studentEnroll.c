@@ -31,6 +31,7 @@ int gsQueue[NUM_STUDENTS];
 int rsQueue[NUM_STUDENTS];
 int eeQueue[NUM_STUDENTS];
 pthread_mutex_t gsMutex, rsMutex, eeMutex;
+int gsStart=0, rsStart=0,eeStart=0, gsSize = 0, rsSize = 0, eeSize = 0;
 sem_t gsSem, rsSem, eeSem;
 
 int timesUp = 0;
@@ -72,12 +73,12 @@ void addToQueue(struct Student *s){
 		printElapsedTime();
 		printf("Student #%i.GS added to GS queue\n",s->studentID);
 
-		//gets semaphore value of queue and sets that as queue pos of student
-		sem_getvalue(&gsSem,&(s->queuePos));
-		printf("GS Queue Position:%i\n",s->queuePos);
-		//adds to queue
-		gsQueue[s->queuePos] = s->studentID;
-		//increment semaphore
+		//adds to queue and records position
+		gsQueue[gsStart+gsSize] = s->studentID;
+		s->queuePos = gsStart+gsSize;
+		
+		//increment semaphore and queueSize
+		gsSize++;
 		sem_post(&gsSem);
 
 		//unlock mutex
@@ -90,10 +91,11 @@ void addToQueue(struct Student *s){
 
 		printElapsedTime();
 		printf("Student #%i.RS added to RS queue\n",s->studentID);
-
-		sem_getvalue(&rsSem,&(s->queuePos));
-		printf("RS Queue Position:%i\n",s->queuePos);
-		rsQueue[s->queuePos] = s->studentID;
+		
+		rsQueue[rsStart+rsSize] = s->studentID;
+		s->queuePos = rsStart+rsSize;
+		
+		rsSize++;
 		sem_post(&rsSem);
 
 		pthread_mutex_unlock(&(s->studentMutex));
@@ -106,9 +108,10 @@ void addToQueue(struct Student *s){
 		printElapsedTime();
 		printf("Student #%i.EE added to EE queue\n",s->studentID);
 
-		sem_getvalue(&eeSem,&(s->queuePos));
-		printf("EE Queue Position:%i\n",s->queuePos);
-		eeQueue[s->queuePos] = s->studentID;
+		eeQueue[eeStart+eeSize] = s->studentID;
+		s->queuePos = eeStart+eeSize;
+		
+		eeSize++;
 		sem_post(&eeSem);
 
 		pthread_mutex_unlock(&(s->studentMutex));
@@ -116,98 +119,55 @@ void addToQueue(struct Student *s){
 	}
 }
 void removeFromQueue(struct Student *s){
-	int studentRemoved = 0;
 	int queuePos = 0;
 	if(s->studentType == 0){
 		pthread_mutex_lock(&gsMutex);
 		//Modify Student Data
 		pthread_mutex_lock(&(s->studentMutex));
-		if(s->enrolled != 1){
-			studentRemoved = 1;
+		if(s->enrolled != 1 && s->queuePos==gsStart){
 			queuePos = s->queuePos;
 			s->queuePos = -1;
 			s->enrolled = -1;
-  printf("Student %i's impatient, trying to remove from queue\n",s->studentID);
+			
+			//increments start of gs Queue decreases Size
+			gsStart++; 
+			gsSize--;
+			printElapsedTime();
+			printf("Student #%i.GS has left due to impatience.\n",s->studentID);
 		}
 		pthread_mutex_unlock(&(s->studentMutex));
-		
-		//Move Rest of Students
-		if(studentRemoved){		
-			//removes Student
-			int i;
-			for(i = queuePos;i<NUM_STUDENTS-1;i++){
-				if(gsQueue[i+1]!=-1 && (allStudents[gsQueue[i+1]].studentType)==0){
-					pthread_mutex_lock(&(allStudents[gsQueue[i+1]].studentMutex));
-					allStudents[gsQueue[i+1]].queuePos = i;
-					gsQueue[i] = gsQueue[i+1];
-					pthread_mutex_unlock(&(allStudents[gsQueue[i+1]].studentMutex));
-				}
-				else{
-					gsQueue[i] = gsQueue[i+1];
-					break;
-				}
-			}
-		}
 		pthread_mutex_unlock(&gsMutex);
 	}
 	else if(s->studentType == 1){
 		pthread_mutex_lock(&rsMutex);
 		pthread_mutex_lock(&(s->studentMutex));
-		if(s->enrolled != 1){
-			studentRemoved = 1;
+		if(s->enrolled != 1 && s->queuePos==rsStart){
 			queuePos = s->queuePos;
 			s->queuePos = -1;
 			s->enrolled = -1;
+			//increments start of rs Queue decreases Size
+			rsStart++;
+			rsSize--;
+			printElapsedTime();
+			printf("Student #%i.RS has left due to impatience.\n",s->studentID);
 		}
 		pthread_mutex_unlock(&(s->studentMutex));
-		
-		//Move Rest of Students
-		if(studentRemoved){		
-			//removes Student
-			int i;
-			for(i = queuePos;i<NUM_STUDENTS-1;i++){
-				if(rsQueue[i+1]!=-1 && (allStudents[rsQueue[i+1]].studentType)==0){
-					pthread_mutex_lock(&(allStudents[rsQueue[i+1]].studentMutex));
-					allStudents[rsQueue[i+1]].queuePos = i;
-					rsQueue[i] = rsQueue[i+1];
-					pthread_mutex_unlock(&(allStudents[rsQueue[i+1]].studentMutex));
-				}
-				else{
-					rsQueue[i] = rsQueue[i+1];
-					break;
-				}
-			}
-		}
 		pthread_mutex_unlock(&rsMutex);
 	}
 	else{
 		pthread_mutex_lock(&eeMutex);
 		pthread_mutex_lock(&(s->studentMutex));
-		if(s->enrolled != 1){
-			studentRemoved = 1;
+		if(s->enrolled != 1 && s->queuePos==eeStart){
 			queuePos = s->queuePos;
 			s->queuePos = -1;
 			s->enrolled = -1;
+			//increments start of ee Queue decreases Size
+			eeStart++;
+			eeSize--;
+			printElapsedTime();
+			printf("Student #%i.EE has left due to impatience.\n",s->studentID);
 		}
 		pthread_mutex_unlock(&(s->studentMutex));
-		
-		//Move Rest of Students
-		if(studentRemoved){		
-			//removes Student
-			int i;
-			for(i = queuePos;i<NUM_STUDENTS-1;i++){
-				if(eeQueue[i+1]!=-1 && (allStudents[eeQueue[i+1]].studentType)==0){
-					pthread_mutex_lock(&(allStudents[eeQueue[i+1]].studentMutex));
-					allStudents[eeQueue[i+1]].queuePos = i;
-					eeQueue[i] = eeQueue[i+1];
-					pthread_mutex_unlock(&(allStudents[eeQueue[i+1]].studentMutex));
-				}
-				else{
-					eeQueue[i] = eeQueue[i+1];
-					break;
-				}
-			}
-		}
 		pthread_mutex_unlock(&eeMutex);
 	}
 }
@@ -222,45 +182,44 @@ void *createStudent(void *param){
 }
 int addStudent(int sectionDesired, int studentID){
   printf("Trying to add student:%i. Section Desired:%i\n",studentID, sectionDesired);
-	int hasBeenAdded= 0;
+	int hasBeenAdded= -1;
 	if(sectionDesired == 0){
 		pthread_mutex_lock(&class0Mutex);
 		if(class0Num < SIZE_SECTION){
 			class0[class0Num] = studentID;
 			class0Num++;
-			pthread_mutex_unlock(&class0Mutex);
-			hasBeenAdded = 1;
+			hasBeenAdded = 0;
 		}
+		pthread_mutex_unlock(&class0Mutex);
 	}
 	else if(sectionDesired == 1){
 		pthread_mutex_lock(&class1Mutex);
 		if(class1Num < SIZE_SECTION){
 			class1[class1Num] = studentID;
 			class1Num++;
-			pthread_mutex_unlock(&class1Mutex);
 			hasBeenAdded = 1;
 		}
+		pthread_mutex_unlock(&class1Mutex);
 	}
 	else if(sectionDesired == 2){
 		pthread_mutex_lock(&class2Mutex);
 		if(class2Num < SIZE_SECTION){
 			class2[class2Num] = studentID;
 			class2Num++;
-			pthread_mutex_unlock(&class2Mutex);
-			hasBeenAdded = 1;
+			hasBeenAdded = 2;
 		}
+		pthread_mutex_unlock(&class2Mutex);
 	}
 	else{
 		pthread_mutex_lock(&class0Mutex);
 		pthread_mutex_lock(&class1Mutex);
 		pthread_mutex_lock(&class2Mutex);
 		//Adds Student to class of smallest size less than 20
-		printf("Total Number of students:%i; class0:%i; class1:%i; class2:%i\n",(class0Num+class1Num+class2Num),class0Num,class1Num,class2Num);
 		if((class0Num+class1Num+class2Num)<(SIZE_SECTION*NUM_SECTIONS)){
 			if(class0Num<= class1Num && class0Num<=class2Num && class0Num<20){
 				class0[class0Num] = studentID;
 				class0Num++;
-				hasBeenAdded = 1;
+				hasBeenAdded = 0;
 			}
 			else if(class1Num<=class0Num && class1Num<=class2Num && class1Num<20){
 				class1[class1Num] = studentID;
@@ -270,7 +229,7 @@ int addStudent(int sectionDesired, int studentID){
 			else if(class2Num < 20){
 				class2[class2Num] = studentID;
 				class2Num++;
-				hasBeenAdded = 1;
+				hasBeenAdded = 2;
 			}
 		}
 		pthread_mutex_unlock(&class2Mutex);
@@ -281,59 +240,55 @@ int addStudent(int sectionDesired, int studentID){
 }
 void gsQueueRun(){
 	if(!timesUp){
-		char addedOrDropped[20]=""; 
 		//wait on gs Semaphore
 		sem_wait(&gsSem);
 		
-		// Locking gs mutex and student mutex to add student to class.
+		// Locking gs mutex and record the start location
 		pthread_mutex_lock(&gsMutex);
-		pthread_mutex_lock(&(allStudents[gsQueue[0]].studentMutex));
-
-		int sectionDesired = allStudents[gsQueue[0]].sectionDesired;
-		int studentID = allStudents[gsQueue[0]].studentID;
+		int start = gsStart;
+		pthread_mutex_unlock(&gsMutex);
+		
 
 		//Waits Random time b/t 1 to 2 seconds
 		sleep(rand()%2+1);
 
-		//Tries to add to section. Need to make sure student hasn't been impatient
-		int addedSuccessfully = 0;
-		if(allStudents[gsQueue[0]].enrolled != -1){
-			addedSuccessfully = addStudent(sectionDesired,studentID);
-		}
-		if(addedSuccessfully) {
-			strcat(addedOrDropped,"added");
-			allStudents[gsQueue[0]].enrolled = 1;
-		} else {
-			strcat(addedOrDropped,"dropped");
-			allStudents[gsQueue[0]].queuePos = -1;
-			allStudents[gsQueue[0]].enrolled = -1;
-		}
-		//Prints event, either success or drop
-		printElapsedTime();                
-		printf("Student #%i.GS has been %s to class.\n", allStudents[gsQueue[0]].studentID, addedOrDropped);
-
-		//assigns wait time to student
-		time_t now;
-		time(&now);
-		
-		double elapsedTime = difftime(now, allStudents[gsQueue[0]].arrivalTime);
-		allStudents[gsQueue[0]].waitTime = (int) elapsedTime;
-		//unlock student lock
-		pthread_mutex_unlock(&(allStudents[gsQueue[0]].studentMutex));
-
-		int i = 0;
-		//removes Student
-		for(i=1;i<NUM_STUDENTS;i++){
-			if(gsQueue[i]!=-1 && (allStudents[gsQueue[i]].studentType)==0){
-				pthread_mutex_lock(&(allStudents[gsQueue[i]].studentMutex));
-				allStudents[gsQueue[i]].queuePos = i-1;
-				gsQueue[i-1] = gsQueue[i];
-				pthread_mutex_unlock(&(allStudents[gsQueue[i]].studentMutex));
+		//relocks mutex and make sure that the start hasn't changed
+		pthread_mutex_lock(&gsMutex);		
+		if(gsStart == start){
+			pthread_mutex_lock(&(allStudents[gsQueue[gsStart]].studentMutex));
+			
+			int sectionDesired = allStudents[gsQueue[gsStart]].sectionDesired;
+			int studentID = allStudents[gsQueue[gsStart]].studentID;
+			//Tries to add to section. Need to make sure student hasn't been impatient
+			
+			int addedSuccessfully = 0;
+			if(allStudents[gsQueue[gsStart]].enrolled != -1){
+				addedSuccessfully = addStudent(sectionDesired,studentID);
 			}
-			else{
-				gsQueue[i-1] = gsQueue[i];
-				break;
+			//Prints event, either success or drop
+			if(addedSuccessfully>=0) {
+				allStudents[gsQueue[gsStart]].enrolled = 1;
+				printElapsedTime();                
+				printf("Student #%i.GS has been added to class %i.\n", allStudents[gsQueue[gsStart]].studentID, addedSuccessfully);
+			} else {
+				allStudents[gsQueue[gsStart]].queuePos = -1;
+				allStudents[gsQueue[gsStart]].enrolled = -1;
+				printElapsedTime();                
+				printf("Student #%i.GS has been removed from GS queue due to lack of space in class %i.\n", allStudents[gsQueue[gsStart]].studentID, addedSuccessfully);
 			}
+			
+			//assigns wait time to student
+			time_t now;
+			time(&now);			
+			double elapsedTime = difftime(now, allStudents[gsQueue[gsStart]].arrivalTime);
+			allStudents[gsQueue[0]].waitTime = (int) elapsedTime;
+			
+			//unlock student lock
+			pthread_mutex_unlock(&(allStudents[gsQueue[gsStart]].studentMutex));
+			
+			//removes student
+			gsSize--;
+			gsStart++;
 		}
 		//Unlocks mutex.
 		pthread_mutex_unlock(&gsMutex);
@@ -341,125 +296,116 @@ void gsQueueRun(){
 }
 void rsQueueRun(){  
 	if(!timesUp){
-		char addedOrDropped[20]=""; 
-		//wait on gs Semaphore
-		sem_wait(&rsSem);		
-
-		// Locking gs mutex and student mutex to add student to class.
+		//wait on rs Semaphore
+		sem_wait(&rsSem);
+		
+		// Locking gs mutex and record the start location
 		pthread_mutex_lock(&rsMutex);
-		pthread_mutex_lock(&(allStudents[rsQueue[0]].studentMutex));
-
-		int sectionDesired = allStudents[rsQueue[0]].sectionDesired;
-		int studentID = allStudents[rsQueue[0]].studentID;
+		int start = rsStart;
+		pthread_mutex_unlock(&rsMutex);
+		
 
 		//Waits Random time b/t 2,3,4 seconds
 		sleep(rand()%3+2);
 
-		//Tries to add to section. Need to make sure student hasn't been impatient
-		int addedSuccessfully = 0;
-		if(allStudents[rsQueue[0]].enrolled != -1){
-			addedSuccessfully = addStudent(sectionDesired,studentID);
-		}
-		if(addedSuccessfully) {
-			strcat(addedOrDropped,"added");
-			allStudents[rsQueue[0]].enrolled = 1;
-		} else {
-			strcat(addedOrDropped,"dropped");
-			allStudents[rsQueue[0]].queuePos = -1;
-			allStudents[rsQueue[0]].enrolled = -1;
-		}
-		//Prints event, either success or drop
-		printElapsedTime();                
-		printf("Student #%i.RS has been %s to class.\n", allStudents[rsQueue[0]].studentID, addedOrDropped);
-		
-		//assigns wait time to student
-		time_t now;
-		time(&now);
-		double elapsedTime = difftime(now, allStudents[rsQueue[0]].arrivalTime);
-		allStudents[rsQueue[0]].waitTime = (int) elapsedTime;
-		//unlock student lock
-		pthread_mutex_unlock(&(allStudents[rsQueue[0]].studentMutex));
-
-		int i = 0;
-		//removes Student
-		for(i=1;i<NUM_STUDENTS;i++){
-			if(rsQueue[i]!=-1 && (allStudents[rsQueue[i]].studentType)==0){
-				pthread_mutex_lock(&(allStudents[rsQueue[i]].studentMutex));
-				allStudents[rsQueue[i]].queuePos = i-1;
-				rsQueue[i-1] = rsQueue[i];
-				pthread_mutex_unlock(&(allStudents[rsQueue[i]].studentMutex));
+		//relocks mutex and make sure that the start hasn't changed
+		pthread_mutex_lock(&rsMutex);		
+		if(rsStart == start){
+			pthread_mutex_lock(&(allStudents[rsQueue[rsStart]].studentMutex));
+			
+			int sectionDesired = allStudents[rsQueue[rsStart]].sectionDesired;
+			int studentID = allStudents[rsQueue[rsStart]].studentID;
+			//Tries to add to section. Need to make sure student hasn't been impatient
+			
+			int addedSuccessfully = 0;
+			if(allStudents[rsQueue[rsStart]].enrolled != -1){
+				addedSuccessfully = addStudent(sectionDesired,studentID);
 			}
-			else{
-				rsQueue[i-1] = rsQueue[i];
-				break;
+			//Prints event, either success or drop
+			if(addedSuccessfully>=0) {
+				allStudents[rsQueue[rsStart]].enrolled = 1;
+				printElapsedTime();                
+				printf("Student #%i.RS has been added to class %i.\n", allStudents[rsQueue[rsStart]].studentID, addedSuccessfully);
+			} else {
+				allStudents[rsQueue[rsStart]].queuePos = -1;
+				allStudents[rsQueue[rsStart]].enrolled = -1;
+				printElapsedTime();                
+				printf("Student #%i.EE has been removed from EE queue due to lack of space in class %i.\n", allStudents[rsQueue[rsStart]].studentID, addedSuccessfully);
 			}
+			
+			//assigns wait time to student
+			time_t now;
+			time(&now);			
+			double elapsedTime = difftime(now, allStudents[rsQueue[rsStart]].arrivalTime);
+			allStudents[rsQueue[rsStart]].waitTime = (int) elapsedTime;
+			
+			//unlock student lock
+			pthread_mutex_unlock(&(allStudents[rsQueue[rsStart]].studentMutex));
+			
+			//removes student
+			rsSize--;
+			rsStart++;
 		}
-
 		//Unlocks mutex.
 		pthread_mutex_unlock(&rsMutex);
 	}
 }
 void eeQueueRun(){
 	if(!timesUp){
-		char addedOrDropped[20]=""; 
 		//wait on ee Semaphore
 		sem_wait(&eeSem);
 		
-		// Locking ee mutex and student mutex to add student to class.
+		// Locking ee mutex and record the start location
 		pthread_mutex_lock(&eeMutex);
-		pthread_mutex_lock(&(allStudents[eeQueue[0]].studentMutex));
-
-		int sectionDesired = allStudents[eeQueue[0]].sectionDesired;
-		int studentID = allStudents[eeQueue[0]].studentID;
-
-		//Waits Random time b/t 3,4,5,6 seconds
-		sleep(rand()%4+3);
+		int start = eeStart;
+		pthread_mutex_unlock(&eeMutex);
 		
-		//Tries to add to section. Need to make sure student hasn't been impatient
-		int addedSuccessfully = 0;
-		if(allStudents[eeQueue[0]].enrolled != -1){
-			addedSuccessfully = addStudent(sectionDesired,studentID);
-		}
-		if(addedSuccessfully) {
-			strcat(addedOrDropped,"added");
-			allStudents[eeQueue[0]].enrolled = 1;
-		} else {
-			strcat(addedOrDropped,"dropped");
-			allStudents[eeQueue[0]].queuePos = -1;
-			allStudents[eeQueue[0]].enrolled = -1;
-		}
-		//Prints event, either success or drop
-		printElapsedTime();                
-		printf("Student #%i.EE has been %s to class.\n", allStudents[eeQueue[0]].studentID, addedOrDropped);
-		
-		//assigns wait time to student
-		time_t now;
-		time(&now);
-		double elapsedTime = difftime(now, allStudents[eeQueue[0]].arrivalTime);
-		allStudents[eeQueue[0]].waitTime = (int) elapsedTime;
-		//unlock student lock
-		pthread_mutex_unlock(&(allStudents[eeQueue[0]].studentMutex));
 
-		int i = 0;
-		//removes Student
-		for(i=1;i<NUM_STUDENTS;i++){
-			if(eeQueue[i]!=-1 && (allStudents[eeQueue[i]].studentType)==0){
-				pthread_mutex_lock(&(allStudents[eeQueue[i]].studentMutex));
-				allStudents[eeQueue[i]].queuePos = i-1;
-				eeQueue[i-1] = eeQueue[i];
-				pthread_mutex_unlock(&(allStudents[eeQueue[i]].studentMutex));
-			}
-			else{
-				eeQueue[i-1] = eeQueue[i];
-				break;
-			}
-		}
+		//Waits Random time b/t 2,3,4 seconds
+		sleep(rand()%3+2);
 
+		//relocks mutex and make sure that the start hasn't changed
+		pthread_mutex_lock(&eeMutex);		
+		if(eeStart == start){
+			pthread_mutex_lock(&(allStudents[eeQueue[eeStart]].studentMutex));
+			
+			int sectionDesired = allStudents[eeQueue[eeStart]].sectionDesired;
+			int studentID = allStudents[eeQueue[eeStart]].studentID;
+			//Tries to add to section. Need to make sure student hasn't been impatient
+			
+			int addedSuccessfully = 0;
+			if(allStudents[eeQueue[eeStart]].enrolled != -1){
+				addedSuccessfully = addStudent(sectionDesired,studentID);
+			}
+			//Prints event, either success or drop
+			if(addedSuccessfully>=0) {
+				allStudents[eeQueue[eeStart]].enrolled = 1;
+				printElapsedTime();                
+				printf("Student #%i.EE has been added to class %i.\n", allStudents[eeQueue[eeStart]].studentID, addedSuccessfully);
+			} else {
+				allStudents[eeQueue[eeStart]].queuePos = -1;
+				allStudents[eeQueue[eeStart]].enrolled = -1;
+				printElapsedTime();                
+				printf("Student #%i.EE has been removed from EE queue due to lack of space in class %i.\n", allStudents[eeQueue[eeStart]].studentID, addedSuccessfully);
+			}
+			
+			//assigns wait time to student
+			time_t now;
+			time(&now);			
+			double elapsedTime = difftime(now, allStudents[eeQueue[eeStart]].arrivalTime);
+			allStudents[eeQueue[eeStart]].waitTime = (int) elapsedTime;
+			
+			//unlock student lock
+			pthread_mutex_unlock(&(allStudents[eeQueue[eeStart]].studentMutex));
+			
+			//removes student
+			eeSize--;
+			eeStart++;
+		}
 		//Unlocks mutex.
 		pthread_mutex_unlock(&eeMutex);
 	}
 }
-//NOTE: look into why Queuestarts are needed?
 void *gsQueueStart(void *param){
 	printf("Queue for Graduating Seniors Starts\n");
 	do {
