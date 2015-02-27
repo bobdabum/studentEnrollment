@@ -126,7 +126,8 @@ void removeFromQueue(struct Student *s){
 			pthread_mutex_lock(&gsMutex);
 			//Modify Student Data
 			pthread_mutex_lock(&(s->studentMutex));
-			if(s->enrolled != 1 && s->queuePos==gsStart){
+			if(s->enrolled != 1 && s->queuePos==gsStart){				
+				remainingStudents[0]--;
 				s->queuePos = -1;
 				s->enrolled = -2;
 				
@@ -147,7 +148,8 @@ void removeFromQueue(struct Student *s){
 		else if(s->studentType == 1){
 			pthread_mutex_lock(&rsMutex);
 			pthread_mutex_lock(&(s->studentMutex));
-			if(s->enrolled != 1 && s->queuePos==rsStart){
+			if(s->enrolled != 1 && s->queuePos==rsStart){				
+				remainingStudents[1]--;
 				s->queuePos = -1;
 				s->enrolled = -2;
 				//increments start of rs Queue decreases Size
@@ -163,7 +165,8 @@ void removeFromQueue(struct Student *s){
 		else{
 			pthread_mutex_lock(&eeMutex);
 			pthread_mutex_lock(&(s->studentMutex));
-			if(s->enrolled != 1 && s->queuePos==eeStart){
+			if(s->enrolled != 1 && s->queuePos==eeStart){				
+				remainingStudents[2]--;
 				s->queuePos = -1;
 				s->enrolled = -2;
 				//increments start of ee Queue decreases Size
@@ -182,7 +185,6 @@ void *createStudent(void *param){
 	struct Student *s = (struct Student*) param;
 	sleep(rand()%ENROLLMENT_WINDOW);
 	time(&(s->arrivalTime));
-	remainingStudents[s->studentType]--;
 	addToQueue(s);
 	sleep(TIME_IMPATIENT);
 	if(!timesUp){
@@ -270,7 +272,8 @@ void gsQueueRun(){
 
 		//relocks mutex and make sure that the start hasn't changed
 		pthread_mutex_lock(&gsMutex);		
-		if(gsStart == start){
+		if(gsStart == start && remainingStudents[0]>0){			
+			remainingStudents[0]--;
 			pthread_mutex_lock(&(allStudents[gsQueue[gsStart]].studentMutex));
 			
 			int sectionDesired = allStudents[gsQueue[gsStart]].sectionDesired;
@@ -297,7 +300,7 @@ void gsQueueRun(){
 			time_t now;
 			time(&now);			
 			double elapsedTime = difftime(now, allStudents[gsQueue[gsStart]].arrivalTime);
-			allStudents[gsQueue[0]].waitTime = (int) elapsedTime;
+			allStudents[gsQueue[gsStart]].waitTime = (int) elapsedTime;
 			
 			//unlock student lock
 			pthread_mutex_unlock(&(allStudents[gsQueue[gsStart]].studentMutex));
@@ -333,7 +336,8 @@ void rsQueueRun(){
 
 		//relocks mutex and make sure that the start hasn't changed
 		pthread_mutex_lock(&rsMutex);		
-		if(rsStart == start){
+		if(rsStart == start && remainingStudents[1]>0){
+			remainingStudents[1]--;
 			pthread_mutex_lock(&(allStudents[rsQueue[rsStart]].studentMutex));
 			
 			int sectionDesired = allStudents[rsQueue[rsStart]].sectionDesired;
@@ -396,7 +400,8 @@ void eeQueueRun(){
 
 		//relocks mutex and make sure that the start hasn't changed
 		pthread_mutex_lock(&eeMutex);		
-		if(eeStart == start){
+		if(eeStart == start && remainingStudents[2]>0){
+			remainingStudents[2]--;
 			pthread_mutex_lock(&(allStudents[eeQueue[eeStart]].studentMutex));
 			
 			int sectionDesired = allStudents[eeQueue[eeStart]].sectionDesired;
@@ -467,7 +472,10 @@ void *eeQueueStart(void *param){
 void timerHandler(int signal)
 {
 	printf("Time Over\n");
-	timesUp = 1;  // office hour is over  NOTE CHANGE THIS Right now I think timesup is not needed or currently incorrectly implemented.
+	timesUp = 1;
+	sem_post(&gsSem);
+	sem_post(&rsSem);
+	sem_post(&eeSem);
 }
 
 int main(int argc, char *argv[])
@@ -533,7 +541,7 @@ int main(int argc, char *argv[])
 	pthread_join(eeThreadID,NULL);
 	time(&endTime);
 	
-	int numDropped = 0, numLeft = 0, numNever, numGS = 0, numRS = 0, numEE = 0;
+	int numDropped = 0, numLeft = 0, numNever=0, numGS = 0, numRS = 0, numEE = 0;
 	double waitTimeGS = 0,waitTimeRS = 0,waitTimeEE = 0;
 	printf("\n--------------------\nSection 0 students:\n");
 	for(a=0;a<class0Num;a++){
@@ -623,7 +631,7 @@ int main(int argc, char *argv[])
 		}
 	}
 		printf("\n--------------------\nAverage Wait Times\n");
-		printf("GS Queue %02ds; RS Queue %02ds; EE Queue %.2fs;\n",waitTimeGS, waitTimeRS, waitTimeEE);
+		printf("GS Queue %.2fs; RS Queue %.2fs; EE Queue %.2fs;\n",waitTimeGS/numGS, waitTimeRS/numRS, waitTimeEE/numEE);
 		printf("Final Stats\n");
 		printf("Number Placed: %i.\nNumber not processed/failed to place: %i.\nNumber left impatiently: %i\n",class0Num+class1Num+class2Num, numDropped+numNever, numLeft);
 }
