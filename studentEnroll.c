@@ -574,7 +574,7 @@ int main(int argc, char *argv[])
 				printf("Student #%i.EE could not be placed because all classes were full. Wait time:%is\n",a,(int)difftime(endTime, allStudents[a].arrivalTime));
 			}
 		}
-		if(allStudents[a].enrolled==-1){
+		else if(allStudents[a].enrolled==-1){
 			numDropped++;						
 			if(allStudents[a].studentType ==0){
 				numGS++;
