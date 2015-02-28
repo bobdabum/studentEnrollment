@@ -614,17 +614,17 @@ int main(int argc, char *argv[])
 			if(allStudents[a].studentType ==0){
 				numGS++;
 				waitTimeGS += allStudents[a].waitTime;
-				printf("Student #%i.GS placed. Wait time:%i\n",a,allStudents[a].waitTime);
+				printf("Student #%i.GS placed. Wait time:%is\n",a,allStudents[a].waitTime);
 			}
 			else if(allStudents[a].studentType ==1){
 				numRS++;
 				waitTimeRS += allStudents[a].waitTime;
-				printf("Student #%i.RS placed. Wait time:%i\n",a,allStudents[a].waitTime);
+				printf("Student #%i.RS placed. Wait time:%is\n",a,allStudents[a].waitTime);
 			}
 			else{
 				numEE++;
 				waitTimeEE += allStudents[a].waitTime;
-				printf("Student #%i.EE placed. Wait time:%i\n",a,allStudents[a].waitTime);
+				printf("Student #%i.EE placed. Wait time:%is\n",a,allStudents[a].waitTime);
 			}
 		}
 	}
