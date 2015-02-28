@@ -531,7 +531,7 @@ int main(int argc, char *argv[])
 	pthread_join(rsThreadID,NULL);
 	pthread_join(eeThreadID,NULL);
 	time(&endTime);
-	
+	int totalTime = (int) difftime(endTime,startTime);
 	if((class0Num+class1Num+class2Num)==NUM_SECTIONS*SIZE_SECTION){
 		printf("All Classes Filled\n");
 	}
@@ -558,20 +558,36 @@ int main(int argc, char *argv[])
 	for(a=0; a<NUM_STUDENTS;a++){
 		if(allStudents[a].enrolled==0){
 			numNever++;
+			int waitTime = (int) difftime(endTime, allStudents[a].arrivalTime);
 			if(allStudents[a].studentType ==0){
-				numGS++;
-				waitTimeGS += difftime(endTime, allStudents[a].arrivalTime);
-				printf("Student #%i.GS could not be placed because all classes were full. Wait time:%is\n",a,(int)difftime(endTime, allStudents[a].arrivalTime));
+				if(waitTime<totalTime){
+					numGS++;
+					waitTimeGS += waitTime;
+					printf("Student #%i.GS could not be placed because all classes were full. Wait time:%is\n",a,waitTime);
+				}
+				else{
+					printf("Student #%i.GS could not be placed because all classes were full. Program ended before student could be processed\n",a);
+				}
 			}
 			else if(allStudents[a].studentType ==1){
-				numRS++;
-				waitTimeRS += difftime(endTime, allStudents[a].arrivalTime);
-				printf("Student #%i.RS could not be placed because all classes were full. Wait time:%is\n",a,(int)difftime(endTime, allStudents[a].arrivalTime));
+				if(waitTime<totalTime){
+					numRS++;
+					waitTimeRS += difftime(endTime, allStudents[a].arrivalTime);
+					printf("Student #%i.RS could not be placed because all classes were full. Wait time:%is\n",a,waitTime);
+				}
+				else{
+					printf("Student #%i.RS could not be placed because all classes were full. Program ended before student could be processed\n",a);
+				}
 			}
 			else{
-				numEE++;
-				waitTimeEE += difftime(endTime, allStudents[a].arrivalTime);
-				printf("Student #%i.EE could not be placed because all classes were full. Wait time:%is\n",a,(int)difftime(endTime, allStudents[a].arrivalTime));
+				if(waitTime<totalTime){
+					numEE++;
+					waitTimeEE += difftime(endTime, allStudents[a].arrivalTime);
+					printf("Student #%i.EE could not be placed because all classes were full. Wait time:%is\n",a,waitTime);
+				}
+				else{
+					printf("Student #%i.EE could not be placed because all classes were full. Program ended before student could be processed\n",a);
+				}
 			}
 		}
 		else if(allStudents[a].enrolled==-1){
@@ -614,17 +630,17 @@ int main(int argc, char *argv[])
 			if(allStudents[a].studentType ==0){
 				numGS++;
 				waitTimeGS += allStudents[a].waitTime;
-				printf("Student #%i.GS placed. Wait time:%is\n",a,allStudents[a].waitTime);
+				printf("Student #%i.GS placed. Wait time:%i\n",a,allStudents[a].waitTime);
 			}
 			else if(allStudents[a].studentType ==1){
 				numRS++;
 				waitTimeRS += allStudents[a].waitTime;
-				printf("Student #%i.RS placed. Wait time:%is\n",a,allStudents[a].waitTime);
+				printf("Student #%i.RS placed. Wait time:%i\n",a,allStudents[a].waitTime);
 			}
 			else{
 				numEE++;
 				waitTimeEE += allStudents[a].waitTime;
-				printf("Student #%i.EE placed. Wait time:%is\n",a,allStudents[a].waitTime);
+				printf("Student #%i.EE placed. Wait time:%i\n",a,allStudents[a].waitTime);
 			}
 		}
 	}
